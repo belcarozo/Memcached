@@ -1,1 +1,2 @@
-MAX_TIME = 2592000
+MAX_EXPTIME = 2592000
+#TODO: los nombres de los errores y eso como constantes

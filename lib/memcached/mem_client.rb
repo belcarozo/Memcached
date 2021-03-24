@@ -1,13 +1,16 @@
 require 'socket'
-require_relative 'mem_commands'
+require_relative 'mem_hash'
 #require_relative 'mem_server'
 
-puts "Please enter hostname"
-hostname = gets.chomp
+module Memcached
+    class Client
 
-puts "Please enter port"
-port = gets.chomp
+        def initialize(hostname, port)
+            @hostname = hostname
+            @port = port
+        end
 
-socket = TCPSocket.open(hostname, port)
-#hago lo que tengo que hacer
-#socket.close no se si va xq dice que no se tiene que desconectar el cliente
+        def run
+            socket = TCPSocket.open(hostname, port)
+    end
+end
