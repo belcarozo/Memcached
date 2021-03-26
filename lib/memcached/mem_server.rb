@@ -1,6 +1,7 @@
 require 'socket'
 require_relative 'mem_hash'
-#require_relative 'mem_client'
+require_relative 'constants'
+require_relative 'mem_client'
 
 module Memcached
     class Server
@@ -14,16 +15,19 @@ module Memcached
         def run #tiene que arrancar a correr cuando arranco en programa. puedo hacer un main?
             #Puedo hacer un main. se hace abajo. sabelo
 
-            puts 'server running...' #TODO mejor mensaje
+            puts 'Server running...' 
+            puts "Connected to #@hostname, port #@port" 
 
             server = TCPServer.new(@hostname, @port)
 
             loop do
                 Thread.start(server.accept) do |client|
-                    command = nil
-
-                    while command != 'quit' 
-                        full_command = client.gets.chomp
+                    #command = 1
+                    full_command = client.gets()
+                    puts full_command
+                    while full_command = client.gets()
+                        #while full_command = client.gets
+                        puts full_command
                         command_words = full_command.split  #(/\W+/)
                         
                         command = command_words[0]
@@ -33,27 +37,84 @@ module Memcached
                         size = command_words[4]
 
                         case command
+
                         when 'get'
-                            if @mem.get(key)
-                                puts 'VALUE' + @mem.get(key).to_string
+                            value = @mem.get(key)
+                            if value
+                                client.write('VALUE' + value.to_string)
                             else 
-                                puts 'END'
+                                client.write(CANNOT_GET)
+                            end
+
                         when 'gets'
                             #TODO
+            
                         when 'set'
-                            @mem.set(key, flags, exptime, size)
-                        when 'add'
-                            @mem.add(key, flags, exptime, size)
+                            value = client.gets.chomp
+                            if value.bytesize = size
+                                @mem.set(value, key, flags, exptime, size)
+                            else
+                                client.write(CLIENT_ERROR)
+                            end
+
+                        when 'add'            
+                            value = client.gets.chomp
+                            if value.bytesize = size
+                                if @mem.add(value, key, flags, exptime, size)
+                                    client.write(STORED)
+                                else 
+                                    client.write(NOT_STORED)
+                                end
+                            else 
+                                client.write(CLIENT_ERROR)
+                            end
+
+                        when 'replace'
+                            value = client.gets.chomp
+                            if value.bytesize = size
+                                if @mem.replace(value, key, flags, exptime, size)
+                                    client.write(STORED)
+                                else 
+                                    client.write(NOT_STORED)
+                                end
+                            else
+                                client.write(CLIENT_ERROR)
+                            end
+
                         when 'append'
-                            @mem.append(key, flags, exptime, size)
+                            value = client.gets.chomp
+                            if value.bytesize = size
+                                if @mem.append(value, key, flags, exptime, size)
+                                    client.write STORED
+                                else
+                                    client.write(NOT_STORED)
+                                end
+                            else
+                                client.write(CLIENT_ERROR)
+                            end
+
                         when 'prepend'
-                            @mem.prepend(key, flags, exptime, size)
+                            value = client.gets.chomp
+                            if value.bytesize = size
+                                if @mem.prepend(value, key, flags, exptime, size)
+                                    client.write(STORED)
+                                else
+                                    client.write(NOT_STORED)
+                                end
+                            else
+                                client.write(CLIENT_ERROR)
+                            end
+
                         when 'cas'
                             #TODO entender que es esto
+                        when 'quit'
+                            break
                         else
-                            #TODO error 
+                            client.write(ERROR)
                         end
                     end
+                
+                    client.write(QUIT)
                 end
             end
         end

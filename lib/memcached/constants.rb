@@ -1,2 +1,9 @@
 MAX_EXPTIME = 2592000
-#TODO: los nombres de los errores y eso como constantes
+MAX_LEN = 2000
+
+CLIENT_ERROR = 'CLIENT_ERROR bad data chunk'
+STORED = 'STORED'
+NOT_STORED = 'NOT_STORED'
+CANNOT_GET = 'END'
+ERROR = 'ERROR'
+QUIT = 'Connection closed by foreign host.'
