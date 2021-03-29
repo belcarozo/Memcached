@@ -12,11 +12,32 @@ module Memcached
         end
 
         def run
-            loop do
-                command = gets.chomp
+            while command = $stdin.gets
                 @socket.puts command
-                puts socket.readpartial(MAX_LEN)
+                command_words = command.split
+                command = command_words[0]
+                case command
+
+                when 'gets', 'get'
+                    loop do
+                        line = @socket.gets
+                        $stdout.puts line
+                        if line.chomp == FIN
+                            break
+                        end
+                        size = line.split[3].to_i
+                        value = @socket.read(size + 1)
+                        $stdout.puts value
+                    end
+                when 'set', 'append', 'prepend', 'add', 'cas' 
+                    value = $stdin.gets
+                    @socket.puts value
+                    $stdout.puts @socket.gets
+                else 
+                    $stdout.puts @socket.gets
+                end
             end
+            @socket.close
         end
     end
 host = ARGV[0]
