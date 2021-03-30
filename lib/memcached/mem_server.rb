@@ -11,6 +11,7 @@ module Memcached
             @port = port
             @mem = MemHash.new()
             @server = TCPServer.new(@hostname, @port)
+            @cas_key = 0
         end
 
         def run
@@ -48,24 +49,36 @@ module Memcached
             #     end 
             #     client.puts(FIN)
             
-            when 'gets', 'get'
+            when 'get'
                 i = 1
                 while command_words[i]
                     key = command_words[i]
                     key_info = @mem.get(key)
                     if key_info
-                        client.puts 'VALUE ' + key + key_info.flags_and_size
+                        client.puts 'VALUE ' + key + key_info.flags + key_info.size
                         client.puts key_info.value
                     end
                     i = i + 1
                 end
                     client.puts(FIN)
 
+            when 'gets'
+                i = 1
+                while command_words[i]
+                    key = command_words[i]
+                    key_info = @mem.get(key)
+                    if key_info
+                        client.puts 'VALUE ' + key + key_info.flags + key_info.size + key_info.cas_key
+                        client.puts key_info.value
+                    end
+                    i = i + 1
+                end
+                    client.puts(FIN)
             when 'quit'
                 client.puts(QUIT)
                 client.close #TODO no funciona
             else 
-                command, key, flags, exptime, size = command_words
+                command, key, flags, exptime, size, noreply = command_words
                 if size
                     f_int = Integer(flags) rescue false
                     exp_int = Integer(exptime) rescue false
@@ -74,11 +87,11 @@ module Memcached
                         when 'set'
                             while value = client.gets()
                                 if value.bytesize == size.to_i + 1
-                                    @mem.set(value, key, flags, exptime.to_i, size)
-                                    client.puts(STORED)
+                                    @mem.set(value, key, flags, exptime.to_i, size, @cas_key)
+                                    client.puts(STORED) unless noreply
                                     break
                                 else
-                                    client.puts(CLIENT_ERROR_CHUNK)
+                                    client.puts(CLIENT_ERROR_CHUNK) unless noreply
                                     break
                                 end
                             end
@@ -87,15 +100,15 @@ module Memcached
                         when 'add'            
                             while value = client.gets()
                                 if value.bytesize == size.to_i + 1
-                                    if @mem.add(value, key, flags, exptime.to_i, size)
-                                        client.puts(STORED)
+                                    if @mem.add(value, key, flags, exptime.to_i, size, @cas_key)
+                                        client.puts(STORED) unless noreply
                                         break
                                     else 
-                                        client.puts(NOT_STORED)
+                                        client.puts(NOT_STORED) unless noreply
                                         break
                                     end
                                 else 
-                                    client.puts(CLIENT_ERROR_CHUNK)
+                                    client.puts(CLIENT_ERROR_CHUNK) unless noreply
                                     break
                                 end
                             end 
@@ -103,15 +116,15 @@ module Memcached
                         when 'replace'
                             while value = client.gets()
                                 if value.bytesize == size.to_i + 1
-                                    if @mem.replace(value, key, flags, exptime.to_i, size)
-                                        client.puts(STORED)
+                                    if @mem.replace(value, key, flags, exptime.to_i, size, @cas_key)
+                                        client.puts(STORED) unless noreply
                                         break
                                     else 
-                                        client.puts(NOT_STORED)
+                                        client.puts(NOT_STORED) unless noreply
                                         break
                                     end
                                 else
-                                    client.puts(CLIENT_ERROR_CHUNK)
+                                    client.puts(CLIENT_ERROR_CHUNK) unless noreply
                                     break
                                 end
                             end
@@ -119,15 +132,15 @@ module Memcached
                         when 'append'
                             while value = client.gets()
                                 if value.bytesize == size.to_i + 1
-                                    if @mem.append(value, key, flags, exptime.to_i, size)
-                                        client.puts(STORED)
+                                    if @mem.append(value, key, flags, exptime.to_i, size, @cas_key)
+                                        client.puts(STORED) unless noreply
                                         break
                                     else
-                                        client.puts(NOT_STORED)
+                                        client.puts(NOT_STORED) unless noreply
                                         break
                                     end
                                 else
-                                    client.puts(CLIENT_ERROR_CHUNK)
+                                    client.puts(CLIENT_ERROR_CHUNK) unless noreply
                                     break
                                 end
                             end
@@ -135,17 +148,17 @@ module Memcached
                         when 'prepend'
                             while value = client.gets()
                                 if value.bytesize == size.to_i + 1
-                                    if @mem.prepend(value, key, flags, exptime.to_i, size)
-                                        client.puts(STORED)
+                                    if @mem.prepend(value, key, flags, exptime.to_i, size, @cas_key)
+                                        client.puts(STORED) unless noreply
                                         break
                                     else
-                                        client.puts(NOT_STORED)
+                                        client.puts(NOT_STORED) unless noreply
                                         break
                                     end
                                 else
                                     puts value.bytesize 
                                     puts size.to_i + 1
-                                    client.puts(CLIENT_ERROR_CHUNK)
+                                    client.puts(CLIENT_ERROR_CHUNK) unless noreply
                                     break
                                 end
                             end
@@ -154,14 +167,12 @@ module Memcached
                             #TODO entender que es esto
                         else
                             client.puts(ERROR)
-                            puts 2
                         end
                     else 
                         client.puts(CLIENT_ERROR_COMMAND) #bad flags or time
                     end
                 else 
                     client.puts(ERROR) #bad sizes
-                    puts 'nooooo'
                 end
                 puts 'aaa'
             end #case
